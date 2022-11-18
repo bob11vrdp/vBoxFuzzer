@@ -9,7 +9,6 @@ import getopt
 import subprocess
 import shlex
 
-
 class Fuzzer:
 	def __init__(self):
 		self.vBoxRunning = False
@@ -47,14 +46,15 @@ class Fuzzer:
 
 	def start_xfreeRDP(self):
 		print("================ xfreeRDP start===============================")		
-		#cmd  = "xfreerdp /u:son /p:1234 /v:127.0.0.1 /audio /sound -sec-tls -sec-nla"
-		cmd  = "xfreerdp /u:rdp /p:rdp /v:192.168.226.139 /audio /sound -sec-tls -sec-nla"  
+		cmd  = "xfreerdp /u:son /p:1234 /v:127.0.0.1 /audio /sound -sec-tls -sec-nla"
+		#cmd  = "xfreerdp /u:rdp /p:rdp /v:192.168.226.139 /audio /sound -sec-tls -sec-nla"  
 		args = shlex.split(cmd)		
 		proc  = subprocess.Popen(args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		self.rdp_proc = proc
 		self.clientRunning = True
 
 		try:
-			outs, error = proc.communicate()#timeout=7
+			outs, error = proc.communicate(timeout=10)#timeout=7
 			print("returnCode :",  proc.returncode)		
 			print("stdout :", outs.decode("utf-8"))
 			print("stderr :", error.decode("utf-8"))
@@ -65,6 +65,8 @@ class Fuzzer:
 			self.clientRunning = False
 		except Exception as e:
 			self.clientRunning = False
+			self.vBoxRunning = False
+
 			print("[start_xfreeRDP  Fail ] :\n", e)
 			proc.kill()
 
@@ -86,10 +88,25 @@ class Fuzzer:
 		except Exception as e:
 			print("\n[Exception ] :\n", e)
 			self.vBoxRunning = False
+			self.clientRunning = False
 			return
 
 		#self.vBoxRunning = True
-	
+
+
+	def exec_cmd(self, cmd):
+		print("**** exec_cmd ==> ", cmd )
+
+		proc  = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		try:
+			outs, error = proc.communicate()
+			print("returnCode :",  proc.returncode)
+			print("stdout :", outs.decode("utf-8"))
+			print("stderr :", error.decode("utf-8"))			
+		except Exception as e:
+			print("\n[Exception ] :\n", e)
+
+
 
 	def stop_vBox(self):		
 	
@@ -116,24 +133,41 @@ class Fuzzer:
 
 	def start(self):
 		while True:
+			
 			if self.vBoxRunning == False:
 				vBox_thread = threading.Thread(target=self.start_vBox)
 				vBox_thread.setDaemon(0)
 				vBox_thread.start()
 
 			else: #vBox is running
-				
+			
 				if self.clientRunning == False:
-					self.start_xfreeRDP()
+					xfreeRDP_thread = threading.Thread(target=self.start_xfreeRDP)
+					xfreeRDP_thread.setDaemon(0)
+					xfreeRDP_thread.start()
+				else: 
+					#self.exec_cmd("./testcase/tstLow")
+					self.exec_cmd("./testcase/tstRTSymlink")
+					self.exec_cmd("./testcase/tstPage")
+					self.exec_cmd("./testcase/tstUsbMouse")
+					self.exec_cmd("./testcase/tstRTMath")
+
+					self.exec_cmd("./testcase/tstRTS3")
+
+				
+					#self.exec_cmd("./testcase/tstRTS3")
+
+					#self.rdp_proc.kill()
 
 				self.iteration += 1
+			
 				
 
 			#############################
 			_counter = 1
 			while _counter < 4:
 				char = "*"
-				time.sleep(1)
+				time.sleep(0.5)
 				char = char * _counter
 				print(char)
 				_counter += 1
