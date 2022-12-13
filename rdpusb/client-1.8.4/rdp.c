@@ -1,32 +1,4 @@
-/* -*- c-basic-offset: 8 -*-
-   rdesktop: A Remote Desktop Protocol client.
-   Protocol services - RDP layer
-   Copyright (C) Matthew Chapman <matthewc.unsw.edu.au> 1999-2008
-   Copyright 2003-2011 Peter Astrand <astrand@cendio.se> for Cendio AB
-   Copyright 2011-2018 Henrik Andersson <hean01@cendio.se> for Cendio AB
 
-   This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation, either version 3 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
-/*
- * Oracle GPL Disclaimer: For the avoidance of doubt, except that if any license choice
- * other than GPL or LGPL is available it will apply instead, Oracle elects to use only
- * the General Public License version 2 (GPLv2) at this time for any software where
- * a choice of GPL license versions is made available with the language indicating
- * that GPLv2 or any later version may be used, or where a choice of which version
- * of the GPL is applied is otherwise unspecified.
- */
 
 #include <time.h>
 #ifndef _WIN32
@@ -124,8 +96,8 @@ rdp_recv(uint8 * type)
 		}
 		else if (rdpver != 3)
 		{
-			/* rdp5_process should move g_next_packet ok */
-			rdp5_process(rdp_s);
+		
+		//	rdp5_process(rdp_s);
 			*type = 0;
 			return rdp_s;
 		}
@@ -638,15 +610,14 @@ rdp_send_client_window_status(int status)
 }
 
 /* Send persistent bitmap cache enumeration PDU's */
-static void
-rdp_enum_bmpcache2(void)
+static void rdp_enum_bmpcache2(void)
 {
 	STREAM s;
 	HASH_KEY keylist[BMPCACHE2_NUM_PSTCELLS];
 	uint32 num_keys, offset, count, flags;
 
 	offset = 0;
-	num_keys = pstcache_enumerate(2, keylist);
+	//num_keys = pstcache_enumerate(2, keylist);
 
 	while (offset < num_keys)
 	{
@@ -805,9 +776,8 @@ rdp_out_bmpcache_caps(STREAM s)
 	out_uint16_le(s, 0x1000 * Bpp);	/* max cell size */
 }
 
-/* Output bitmap cache v2 capability set */
-static void
-rdp_out_bmpcache2_caps(STREAM s)
+
+static void rdp_out_bmpcache2_caps(STREAM s)
 {
 	out_uint16_le(s, RDP_CAPSET_BMPCACHE2);
 	out_uint16_le(s, RDP_CAPLEN_BMPCACHE2);
@@ -816,14 +786,14 @@ rdp_out_bmpcache2_caps(STREAM s)
 
 	out_uint16_be(s, 3);	/* number of caches in this set */
 
-	/* max cell size for cache 0 is 16x16, 1 = 32x32, 2 = 64x64, etc */
+
 	out_uint32_le(s, BMPCACHE2_C0_CELLS);
 	out_uint32_le(s, BMPCACHE2_C1_CELLS);
-	if (pstcache_init(2))
+	//if (pstcache_init(2))
 	{
-		out_uint32_le(s, BMPCACHE2_NUM_PSTCELLS | BMPCACHE2_FLAG_PERSIST);
+	//	out_uint32_le(s, BMPCACHE2_NUM_PSTCELLS | BMPCACHE2_FLAG_PERSIST);
 	}
-	else
+	//else
 	{
 		out_uint32_le(s, BMPCACHE2_C2_CELLS);
 	}
@@ -1059,7 +1029,7 @@ rdp_process_bitmap_caps(STREAM s)
 			width, height);
 		g_width = width;
 		g_height = height;
-		ui_resize_window();
+		//ui_resize_window();
 	}
 }
 
@@ -1132,12 +1102,11 @@ process_demand_active(STREAM s)
 	rdp_recv(&type);	/* RDP_PDU_SYNCHRONIZE */
 	rdp_recv(&type);	/* RDP_CTL_COOPERATE */
 	rdp_recv(&type);	/* RDP_CTL_GRANT_CONTROL */
-	rdp_send_input(0, RDP_INPUT_SYNCHRONIZE, 0,
-		       g_numlock_sync ? ui_get_numlock_state(read_keyboard_state()) : 0, 0);
+	//rdp_send_input(0, RDP_INPUT_SYNCHRONIZE, 0,      g_numlock_sync ? ui_get_numlock_state(read_keyboard_state()) : 0, 0);
 
 	if (g_rdp_version >= RDP_V5)
 	{
-		rdp_enum_bmpcache2();
+		//rdp_enum_bmpcache2();
 		rdp_send_fonts(3);
 	}
 	else
@@ -1147,7 +1116,7 @@ process_demand_active(STREAM s)
 	}
 
 	rdp_recv(&type);	/* RDP_PDU_UNKNOWN 0x28 (Fonts?) */
-	reset_order_state();
+	//reset_order_state();
 }
 
 /* Process a colour pointer PDU */
@@ -1177,9 +1146,9 @@ process_colour_pointer_common(STREAM s, int bpp)
 	/* keep hotspot within cursor bounding box */
 	x = MIN(x, width - 1);
 	y = MIN(y, height - 1);
-	cursor = ui_create_cursor(x, y, width, height, mask, data, bpp);
-	ui_set_cursor(cursor);
-	cache_put_cursor(cache_idx, cursor);
+	//cursor = ui_create_cursor(x, y, width, height, mask, data, bpp);
+	//ui_set_cursor(cursor);
+	//(cache_idx, cursor);
 }
 
 /* Process a colour pointer PDU */
@@ -1206,7 +1175,7 @@ process_cached_pointer_pdu(STREAM s)
 	uint16 cache_idx;
 
 	in_uint16_le(s, cache_idx);
-	ui_set_cursor(cache_get_cursor(cache_idx));
+	//ui_set_cursor(cache_get_cursor(cache_idx));
 }
 
 /* Process a system pointer PDU */
@@ -1219,7 +1188,7 @@ process_system_pointer_pdu(STREAM s)
 	switch (system_pointer_type)
 	{
 		case RDP_NULL_POINTER:
-			ui_set_null_cursor();
+			//ui_set_null_cursor();
 			break;
 
 		default:
@@ -1242,8 +1211,8 @@ process_pointer_pdu(STREAM s)
 		case RDP_POINTER_MOVE:
 			in_uint16_le(s, x);
 			in_uint16_le(s, y);
-			if (s_check(s))
-				ui_move_pointer(x, y);
+		//	if (s_check(s))
+			//	ui_move_pointer(x, y);
 			break;
 
 		case RDP_POINTER_COLOR:
@@ -1291,13 +1260,6 @@ process_bitmap_data(STREAM s)
 	cx = right - left + 1;
 	cy = bottom - top + 1;
 
-	/* FIXME: There are a assumtion that we do not consider in
-	   this code. The value of bpp is not passed to
-	   ui_paint_bitmap() which relies on g_server_bpp for drawing
-	   the bitmap data.
-
-	   Does this means that we can sanity check bpp with g_server_bpp ?
-	 */
 
 
 	if (Bpp == 0 || width == 0 || height == 0)
@@ -1332,7 +1294,7 @@ process_bitmap_data(STREAM s)
 		{
 			in_uint8a(s, &bmpdata[(height - y - 1) * (width * Bpp)], width * Bpp);
 		}
-		ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
+	//	ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
 		xfree(bmpdata);
 		return;
 	}
@@ -1357,11 +1319,11 @@ process_bitmap_data(STREAM s)
 	}
 	in_uint8p(s, data, size);
 	bmpdata = (uint8 *) xmalloc(width * height * Bpp);
-	if (bitmap_decompress(bmpdata, width, height, data, size, Bpp))
+//	if (bitmap_decompress(bmpdata, width, height, data, size, Bpp))
 	{
-		ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
+		//ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
 	}
-	else
+	//else
 	{
 		warning("%s(), failed to decompress bitmap", __func__);
 	}
@@ -1403,7 +1365,7 @@ process_palette(STREAM s)
 
 	DEBUG(("PALETTE(c=%d)\n", map.ncolours));
 
-	for (i = 0; i < map.ncolours; i++)
+	for (i = 0; i < map.ncolours; i++)/*  */
 	{
 		entry = &map.colours[i];
 		in_uint8(s, entry->red);
@@ -1411,8 +1373,8 @@ process_palette(STREAM s)
 		in_uint8(s, entry->blue);
 	}
 
-	hmap = ui_create_colourmap(&map);
-	ui_set_colourmap(hmap);
+	//hmap = ui_create_colourmap(&map);
+	//ui_set_colourmap(hmap);
 
 	xfree(map.colours);
 }
@@ -1425,14 +1387,14 @@ process_update_pdu(STREAM s)
 
 	in_uint16_le(s, update_type);
 
-	ui_begin_update();
+	//ui_begin_update();
 	switch (update_type)
 	{
 		case RDP_UPDATE_ORDERS:
 			in_uint8s(s, 2);	/* pad */
 			in_uint16_le(s, count);
 			in_uint8s(s, 2);	/* pad */
-			process_orders(s, count);
+			//process_orders(s, count);
 			break;
 
 		case RDP_UPDATE_BITMAP:
@@ -1449,7 +1411,7 @@ process_update_pdu(STREAM s)
 		default:
 			unimpl("update %d\n", update_type);
 	}
-	ui_end_update();
+	//ui_end_update();
 }
 
 
@@ -1568,7 +1530,7 @@ process_data_pdu(STREAM s, uint32 * ext_disc_reason)
 			break;
 
 		case RDP_DATA_PDU_BELL:
-			ui_bell();
+		//	ui_bell();
 			break;
 
 		case RDP_DATA_PDU_LOGON:
