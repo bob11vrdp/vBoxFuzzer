@@ -234,7 +234,7 @@ tcp_recv(STREAM s, uint32 length)
 	{
 		if ((!g_ssl || SSL_pending(g_ssl) <= 0) && g_run_ui)
 		{
-			if (!ui_select(g_sock))
+			//if (!ui_select(g_sock))
 			{
 				/* User quit */
 				g_user_quit = True;
