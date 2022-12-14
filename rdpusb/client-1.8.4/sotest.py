@@ -4,6 +4,7 @@ import threading
 import os
 import time
 import subprocess
+import sys
 
 
 def exec_radamsa():
@@ -18,11 +19,17 @@ def exec_radamsa():
 	except Exception as e:
 		print(e)			
 		return b""
-			
+
+ip_addr = ""
+if len(sys.argv) < 2:
+	ip_addr = b"127.0.0.1"
+else:
+	ip_addr = sys.argv[1].encode('ascii')
+	
+print("ip addr : ", ip_addr)
+
 libc = cdll.LoadLibrary("./librdesktop.so")
-libc.fuzz_connect(b"127.0.0.1")
-
-
+libc.fuzz_connect(ip_addr)
 while(1):				
 	try:
 		print(libc)
@@ -34,4 +41,3 @@ while(1):
 		time.sleep(1)	
 	except Exception as e:
 			print("[Exception] : ", e)
-
