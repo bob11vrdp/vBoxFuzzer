@@ -5,6 +5,8 @@ import time
 import subprocess
 from ctypes import *
 
+libc = cdll.LoadLibrary("./librdesktop.so")
+
 class Fuzzer:
     def __init__(self):
         self.iteration = 0
@@ -25,7 +27,7 @@ class Fuzzer:
         f.close() 
 
     def start_vBox(self):
-        cmd  = " ./VBoxHeadless --startvm win10 --vrde on"
+        cmd  = " /home/son/VBX/VirtualBox-6.1.36/out/linux.amd64/release/bin/VBoxHeadless --startvm win10 --vrde on"
         print("\n>>>", cmd)
         proc  = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
@@ -41,7 +43,16 @@ class Fuzzer:
         except Exception as e:
             print(e)
             return
-            
+
+    def start_librdesktop(self):
+        print(libc)
+        try:
+            outs = self.exec_radamsa()
+            libc.fuzz_connect(b"127.0.0.1", outs)
+        except Exception as e:
+            print(e)
+            return
+
     def exec_radamsa(self):
         cmd  = "echo 'aaa' | radamsa"
         proc  = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -69,8 +80,7 @@ class Fuzzer:
         except Exception as e:
             return False
             
-    def start(self):
-        libc = cdll.LoadLibrary("./librdesktop.so")
+    def start(self):        
         
         while True:
             
@@ -81,10 +91,9 @@ class Fuzzer:
                 vBox_thread.start()
                 time.sleep(0.5)
             else:
-                outs = self.exec_radamsa()
-                libc.fuzz_connect(b"127.0.0.1", outs)                
+                self.start_librdesktop()
                 time.sleep(0.5)
-            
+
             _counter = 1
             while _counter < 4:
                 time.sleep(0.5)
