@@ -1,4 +1,32 @@
+/* -*- c-basic-offset: 8 -*-
+   rdesktop: A Remote Desktop Protocol client.
+   Entrypoint and utility functions
+   Copyright (C) Matthew Chapman <matthewc.unsw.edu.au> 1999-2008
+   Copyright 2002-2011 Peter Astrand <astrand@cendio.se> for Cendio AB
+   Copyright 2010-2014 Henrik Andersson <hean01@cendio.se> for Cendio AB
 
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*
+ * Oracle GPL Disclaimer: For the avoidance of doubt, except that if any license choice
+ * other than GPL or LGPL is available it will apply instead, Oracle elects to use only
+ * the General Public License version 2 (GPLv2) at this time for any software where
+ * a choice of GPL license versions is made available with the language indicating
+ * that GPLv2 or any later version may be used, or where a choice of which version
+ * of the GPL is applied is otherwise unspecified.
+ */
 
 #include <stdarg.h>		/* va_list va_start va_end */
 #include <unistd.h>		/* read close getuid getgid getpid getppid gethostname */
@@ -132,6 +160,8 @@ uint8 g_client_random[SEC_RANDOM_SIZE];
 RD_BOOL g_pending_resize = False;
 
 
+RD_BOOL g_rdpsnd = False;
+
 
 
 RD_BOOL g_rdpusb = False;
@@ -151,9 +181,103 @@ char *g_sc_card_name = NULL;
 char *g_sc_container_name = NULL;
 
 extern RDPDR_DEVICE g_rdpdr_device[];
-
+extern uint32 g_num_devices;
 extern char *g_rdpdr_clientname;
 
+#ifdef RDP2VNC
+extern int rfb_port;
+extern int defer_time;
+void
+rdp2vnc_connect(char *server, uint32 flags, char *domain, char *password,
+		char *shell, char *directory);
+#endif
+/* Display usage information */
+static void usage(char *program)
+{
+	fprintf(stderr, "rdesktop: A Remote Desktop Protocol client.\n");
+	fprintf(stderr,
+		"Version " PACKAGE_VERSION ". Copyright (C) 1999-2011 Matthew Chapman et al.\n");
+#ifdef VBOX
+        fprintf(stderr, "Modified for VirtualBox by " VBOX_VENDOR "\n");
+#endif
+	fprintf(stderr, "See http://www.rdesktop.org/ for more information.\n\n");
+
+	fprintf(stderr, "Usage: %s [options] server[:port]\n", program);
+#ifdef RDP2VNC
+	fprintf(stderr, "   -V: vnc port\n");
+	fprintf(stderr, "   -Q: defer time (ms)\n");
+#endif
+	fprintf(stderr, "   -u: user name\n");
+	fprintf(stderr, "   -d: domain\n");
+	fprintf(stderr, "   -s: shell / seamless application to start remotly\n");
+	fprintf(stderr, "   -c: working directory\n");
+	fprintf(stderr, "   -p: password (- to prompt)\n");
+	fprintf(stderr, "   -n: client hostname\n");
+	fprintf(stderr, "   -k: keyboard layout on server (en-us, de, sv, etc.)\n");
+	fprintf(stderr, "   -g: desktop geometry (WxH)\n");
+
+	fprintf(stderr, "   -f: full-screen mode\n");
+	fprintf(stderr, "   -b: force bitmap updates\n");
+#ifdef HAVE_ICONV
+	fprintf(stderr, "   -L: local codepage\n");
+#endif
+	fprintf(stderr, "   -A: path to SeamlessRDP shell, this enables SeamlessRDP mode\n");
+	fprintf(stderr, "   -B: use BackingStore of X-server (if available)\n");
+	fprintf(stderr, "   -e: disable encryption (French TS)\n");
+	fprintf(stderr, "   -E: disable encryption from client to server\n");
+	fprintf(stderr, "   -m: do not send motion events\n");
+	fprintf(stderr, "   -C: use private colour map\n");
+	fprintf(stderr, "   -D: hide window manager decorations\n");
+	fprintf(stderr, "   -K: keep window manager key bindings\n");
+	fprintf(stderr, "   -S: caption button size (single application mode)\n");
+	fprintf(stderr, "   -T: window title\n");
+	fprintf(stderr, "   -t: disable use of remote ctrl\n");
+	fprintf(stderr, "   -N: enable numlock syncronization\n");
+	fprintf(stderr, "   -X: embed into another window with a given id.\n");
+	fprintf(stderr, "   -a: connection colour depth\n");
+	fprintf(stderr, "   -z: enable rdp compression\n");
+	fprintf(stderr, "   -x: RDP5 experience (m[odem 28.8], b[roadband], l[an] or hex nr.)\n");
+	fprintf(stderr, "   -P: use persistent bitmap caching\n");
+	fprintf(stderr, "   -r: enable specified device redirection (this flag can be repeated)\n");
+	fprintf(stderr,
+		"         '-r comport:COM1=/dev/ttyS0': enable serial redirection of /dev/ttyS0 to COM1\n");
+	fprintf(stderr, "             or      COM1=/dev/ttyS0,COM2=/dev/ttyS1\n");
+	fprintf(stderr,
+		"         '-r disk:floppy=/mnt/floppy': enable redirection of /mnt/floppy to 'floppy' share\n");
+	fprintf(stderr, "             or   'floppy=/mnt/floppy,cdrom=/mnt/cdrom'\n");
+	fprintf(stderr, "         '-r clientname=<client name>': Set the client name displayed\n");
+	fprintf(stderr, "             for redirected disks\n");
+	fprintf(stderr,
+		"         '-r lptport:LPT1=/dev/lp0': enable parallel redirection of /dev/lp0 to LPT1\n");
+	fprintf(stderr, "             or      LPT1=/dev/lp0,LPT2=/dev/lp1\n");
+	fprintf(stderr, "         '-r printer:mydeskjet': enable printer redirection\n");
+	fprintf(stderr,
+		"             or      mydeskjet=\"HP LaserJet IIIP\" to enter server driver as well\n");
+
+#ifdef WITH_RDPUSB
+        fprintf(stderr,
+                "         '-r usb': enable USB redirection\n");
+#endif
+	fprintf(stderr,
+		"         '-r clipboard:[off|PRIMARYCLIPBOARD|CLIPBOARD]': enable clipboard\n");
+	fprintf(stderr, "                      redirection.\n");
+	fprintf(stderr,
+		"                      'PRIMARYCLIPBOARD' looks at both PRIMARY and CLIPBOARD\n");
+	fprintf(stderr, "                      when sending data to server.\n");
+	fprintf(stderr, "                      'CLIPBOARD' looks at only CLIPBOARD.\n");
+
+	fprintf(stderr, "   -0: attach to console\n");
+	fprintf(stderr, "   -4: use RDP version 4\n");
+	fprintf(stderr, "   -5: use RDP version 5 (default)\n");
+#ifdef WITH_BIRD_VD_HACKS
+    fprintf(stderr, "   -H keep-virtual-desktop-shortcuts: Keep keyboard shortcuts typical\n"
+                    "      for switching virtual desktops (C-A-Left/Right). \n");
+#endif
+
+
+	fprintf(stderr, "\n");
+
+}
 
 static int handle_disconnect_reason(RD_BOOL deactivated, uint16 reason)
 {
@@ -309,10 +433,48 @@ rdesktop_reset_state(void)
 
 }
 
+static RD_BOOL
+read_password(char *password, int size)
+{
+	struct termios tios;
+	RD_BOOL ret = False;
+	int istty = 0;
+	char *p;
 
-static void parse_server_and_port(char *server)
+	if (tcgetattr(STDIN_FILENO, &tios) == 0)
+	{
+		fprintf(stderr, "Password: ");
+		tios.c_lflag &= ~ECHO;
+		tcsetattr(STDIN_FILENO, TCSANOW, &tios);
+		istty = 1;
+	}
+
+	if (fgets(password, size, stdin) != NULL)
+	{
+		ret = True;
+
+		/* strip final newline */
+		p = strchr(password, '\n');
+		if (p != NULL)
+			*p = 0;
+	}
+
+	if (istty)
+	{
+		tios.c_lflag |= ECHO;
+		tcsetattr(STDIN_FILENO, TCSANOW, &tios);
+		fprintf(stderr, "\n");
+	}
+
+	return ret;
+}
+
+static void
+parse_server_and_port(char *server)
 {
 	char *p;
+
+
 	p = strchr(server, ':');
 	if (p != NULL)
 	{
@@ -324,7 +486,6 @@ static void parse_server_and_port(char *server)
 }
 
 #ifdef VBOX
-fprintf(stdout, "[!!!!!!!!!!!!! VBOX \n]\n");
 /* This disables iprt logging */
 DECLEXPORT(PRTLOGGER) RTCALL RTLogDefaultInit(void)
 {
@@ -332,18 +493,12 @@ DECLEXPORT(PRTLOGGER) RTCALL RTLogDefaultInit(void)
 }
 #endif
 
-
-
-extern void fuzz_init(void);
 extern void fuzz_device_list(char *buf);
 
-
-
 /* Client program */
-extern int wrap_main(char * buf)
+extern int fuzz_connect(char *ip, char* buf)
 {
-	int argc = 4;
-	char *argv[] = {"./rdesktop-vrdp","127.0.0.1","-r","usb"};
+
 
 	char server[256];
 	char fullhostname[64];
@@ -359,8 +514,13 @@ extern int wrap_main(char * buf)
 	int username_option = 0;
 	RD_BOOL geometry_option = False;
 
+#if defined(VBOX) && defined(OPENSSL_MANGLER)
+    /* Only need RT initialization if building against OpenSSL using
+     * RT synchronization, standalone rdesktop doesn't need this. */
+    RTR3InitExe(argc, &argv, 0);
+#endif
+
 #ifdef HAVE_LOCALE_H
-	fprintf(stdout, "[!!!!!!!!!!!!! HAVE_LOCALE_H \n]\n");
 	/* Set locale according to environment */
 	locale = setlocale(LC_ALL, "");
 	if (locale)
@@ -370,18 +530,83 @@ extern int wrap_main(char * buf)
 
 #endif
 
+	/* Ignore SIGPIPE, since we are using popen() */
+	struct sigaction act;
+	memset(&act, 0, sizeof(act));
+	act.sa_handler = SIG_IGN;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	sigaction(SIGPIPE, &act, NULL);
+
 	/* setup default flags for TS_INFO_PACKET */
 	flags = RDP_INFO_MOUSE | RDP_INFO_DISABLECTRLALTDEL
 		| RDP_INFO_UNICODE | RDP_INFO_MAXIMIZESHELL | RDP_INFO_ENABLEWINDOWSKEY;
 
 	prompt_password = False;
 	g_seamless_spawn_cmd[0] = domain[0] = g_password[0] = shell[0] = directory[0] = 0;
-	g_embed_wnd = 0;	
+	g_embed_wnd = 0;
+
+	//g_num_devices = 0;
+
+#ifdef RDP2VNC
+#define VNCOPT "V:Q:"
+#else
+#define VNCOPT
+#endif
+#ifdef WITH_BIRD_VD_HACKS
+#define VDHOPT "H:"
+#else
+#define VDHOPT
+#endif
+
+
 	g_rdpusb = True;
 
-	//STRNCPY(server, "192.168.226.151", sizeof(server));
-	STRNCPY(server, "127.0.0.1", sizeof(server));
+
+	STRNCPY(server, ip, sizeof(server));
 	parse_server_and_port(server);
+
+	if (g_seamless_rdp)
+	{
+		if (shell[0])
+			STRNCPY(g_seamless_spawn_cmd, shell, sizeof(g_seamless_spawn_cmd));
+
+		STRNCPY(shell, g_seamless_shell, sizeof(shell));
+
+		if (g_win_button_size)
+		{
+			error("You cannot use -S and -A at the same time\n");
+			return EX_USAGE;
+		}
+		g_rdp5_performanceflags &= ~RDP5_NO_FULLWINDOWDRAG;
+		if (geometry_option)
+		{
+			error("You cannot use -g and -A at the same time\n");
+			return EX_USAGE;
+		}
+		if (g_fullscreen)
+		{
+			error("You cannot use -f and -A at the same time\n");
+			return EX_USAGE;
+		}
+		if (g_hide_decorations)
+		{
+			error("You cannot use -D and -A at the same time\n");
+			return EX_USAGE;
+		}
+		if (g_embed_wnd)
+		{
+			error("You cannot use -X and -A at the same time\n");
+			return EX_USAGE;
+		}
+		if (g_rdp_version < RDP_V5)
+		{
+			error("You cannot use -4 and -A at the same time\n");
+			return EX_USAGE;
+		}
+		g_sizeopt = -100;
+		g_grab_keyboard = False;
+	}
 
 	if (!username_option)
 	{
@@ -396,10 +621,8 @@ extern int wrap_main(char * buf)
 		g_username = (char *) xmalloc(pwlen);
 		STRNCPY(g_username, pw->pw_name, pwlen);
 	}
-	
-#ifdef HAVE_ICONV
 
-	fprintf(stdout, "HAVE_ICONV\n");
+#ifdef HAVE_ICONV
 	if (g_codepage[0] == 0)
 	{
 		if (setlocale(LC_CTYPE, ""))
@@ -427,13 +650,12 @@ extern int wrap_main(char * buf)
 
 		STRNCPY(g_hostname, fullhostname, sizeof(g_hostname));
 	}
-	
-	fprintf(stdout, "222222\n");
-	/*if (g_keymapname[0] == 0)
+
+	if (g_keymapname[0] == 0)
 	{
 		//if (locale && xkeymap_from_locale(locale))
 		{
-			//fprintf(stderr, "Autoselected keyboard map %s\n", g_keymapname);
+		//	fprintf(stderr, "Autoselected keyboard map %s\n", g_keymapname);
 		}
 		//else
 		{
@@ -442,19 +664,59 @@ extern int wrap_main(char * buf)
 	}
 	if (locale)
 		xfree(locale);
-		*/
-	
-	//if (!ui_init())
-		//return EX_OSERR;
 
-	fuzz_init();
-	fprintf(stdout, "44444\n");
 
+	if (prompt_password && read_password(g_password, sizeof(g_password)))
+		flags |= RDP_INFO_AUTOLOGON;
+
+	if (g_title[0] == 0)
+	{
+		strcpy(g_title, "rdesktop - ");
+		strncat(g_title, server, sizeof(g_title) - sizeof("rdesktop - "));
+	}
+
+#ifdef RDP2VNC
+	rdp2vnc_connect(server, flags, domain, g_password, shell, directory);
+	return EX_OK;
+#else
+
+	// Only startup ctrl functionality is seamless are used for now. 
+	/*if (g_use_ctrl && g_seamless_rdp)
+	{
+		if (ctrl_init(server, domain, g_username) < 0)
+		{
+			error("Failed to initialize ctrl mode.");
+			exit(1);
+		}
+
+		if (ctrl_is_slave())
+		{
+			fprintf(stdout,
+				"rdesktop in slave mode sending command to master process.\n");
+
+			//if (g_seamless_spawn_cmd[0])
+				//return ctrl_send_command("seamless.spawn", g_seamless_spawn_cmd);
+
+			fprintf(stdout, "No command specified to be spawn in seamless mode.\n");
+			return EX_USAGE;
+		}
+	}
+*/
+//	if (!ui_init())
+//		return EX_OSERR;
+
+	rdpusb_init();
+
+
+    // if (g_lspci_enabled)
+	//	lspci_init();
+
+	//rdpdr_init();
 	g_reconnect_loop = False;
 	while (1)
 	{
 		rdesktop_reset_state();
-		fprintf(stdout, "555\n");
+
 		if (g_redirect)
 		{
 			STRNCPY(domain, g_redirect_domain, sizeof(domain));
@@ -467,16 +729,15 @@ extern int wrap_main(char * buf)
 			fprintf(stderr, "Redirected to %s@%s session %d.\n",
 				g_redirect_username, g_redirect_server, g_redirect_session_id);
 
-		
+			/* A redirect on SSL from a 2003 WTS will result in a 'connection reset by peer'
+			   and therefor we just clear this error before we connect to redirected server.
+			 */
 			g_network_error = False;
 			g_redirect = False;
 		}
 		
 		//ui_init_connection();
-		
-		int rs =  rdp_connect(server, flags, domain, g_password, shell, directory, g_reconnect_loop);
-		fprintf(stdout, "rs : %d\n", rs);
-		if (!rs)
+		if (!rdp_connect(server, flags, domain, g_password, shell, directory, g_reconnect_loop))
 		{
 
 			g_network_error = False;
@@ -495,30 +756,31 @@ extern int wrap_main(char * buf)
 			sleep(4);
 			continue;
 		}
-
+		
 		if (g_redirect)
 		{
 			rdp_disconnect();
 			continue;
-		}		
+		}
 
-		DEBUG(("Connection successful.\n"));
-		fprintf(stdout, "777\n");
+		if (!g_packet_encryption)
+			g_encryption_initial = g_encryption = False;
 
-		rd_create_ui();
+		fprintf(stdout,"** Connection successful.\n");		
+		fuzz_device_list(buf);
+		//rd_create_ui();
 		tcp_run_ui(True);
+
 
 		deactivated = False;
 		g_reconnect_loop = False;
 		rdp_main_loop(&deactivated, &ext_disc_reason);
-		fprintf(stdout, "888\n");
+
 		tcp_run_ui(False);
 
-		
-		DEBUG(("Disconnecting...\n"));
+		//fprintf(stdout,"** Disconnecting...\n");
 		//rdp_disconnect();
 
-		fprintf(stdout, "888\n");
 		if (g_redirect)
 			continue;
 
@@ -550,17 +812,20 @@ extern int wrap_main(char * buf)
 	//ui_deinit();
 
 
-    //rdpusb_close();
+    rdpusb_close();
 
-	
+
 	if (g_user_quit)
-	{
-		fprintf(stdout, "999\n");
 		return EXRD_WINDOW_CLOSED;
-	}
-	return handle_disconnect_reason(deactivated, ext_disc_reason);
-}
 
+	return handle_disconnect_reason(deactivated, ext_disc_reason);
+
+#endif
+	if (g_redirect_username)
+		xfree(g_redirect_username);
+
+	xfree(g_username);
+}
 
 #ifdef EGD_SOCKET
 /* Read 32 random bytes from PRNGD or EGD socket (based on OpenSSL RAND_egd) */
@@ -601,7 +866,8 @@ generate_random_egd(uint8 * buf)
 #endif
 
 /* Generate a 32-byte random for the secure transport code. */
-void generate_random(uint8 * random)
+void
+generate_random(uint8 * random)
 {
 	struct stat st;
 	struct tms tmsbuf;
@@ -709,6 +975,7 @@ xfree(void *mem)
 void
 error(char *format, ...)
 {
+	fprintf(stdout, "[rdesktop.c - error ]\n");
 	va_list ap;
 
 	fprintf(stderr, "ERROR: ");
@@ -773,8 +1040,28 @@ hexdump(unsigned char *p, unsigned int len)
 	}
 }
 
+/*
+  input: src is the string we look in for needle.
+  	 Needle may be escaped by a backslash, in
+	 that case we ignore that particular needle.
+  return value: returns next src pointer, for
+  	succesive executions, like in a while loop
+	if retval is 0, then there are no more args.
+  pitfalls:
+  	src is modified. 0x00 chars are inserted to
+	terminate strings.
+	return val, points on the next val chr after ins
+	0x00
 
-char *next_arg(char *src, char needle)
+	example usage:
+	while( (pos = next_arg( optarg, ',')) ){
+		printf("%s\n",optarg);
+		optarg=pos;
+	}
+
+*/
+char *
+next_arg(char *src, char needle)
 {
 	char *nextval;
 	char *p;
@@ -1088,10 +1375,10 @@ void
 rd_create_ui()
 {
 	/* only create a window if we dont have one intialized */
-//	if (!ui_have_window())
+	//if (!ui_have_window())
 	{
-		//if (!ui_create_window())
-		//	exit(EX_OSERR);
+	//	if (!ui_create_window())
+	//		exit(EX_OSERR);
 	}
 }
 

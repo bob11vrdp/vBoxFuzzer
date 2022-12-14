@@ -1,4 +1,32 @@
+/* -*- c-basic-offset: 8 -*-
+   rdesktop: A Remote Desktop Protocol client.
+   Protocol services - RDP layer
+   Copyright (C) Matthew Chapman <matthewc.unsw.edu.au> 1999-2008
+   Copyright 2003-2011 Peter Astrand <astrand@cendio.se> for Cendio AB
+   Copyright 2011-2018 Henrik Andersson <hean01@cendio.se> for Cendio AB
 
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation, either version 3 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*
+ * Oracle GPL Disclaimer: For the avoidance of doubt, except that if any license choice
+ * other than GPL or LGPL is available it will apply instead, Oracle elects to use only
+ * the General Public License version 2 (GPLv2) at this time for any software where
+ * a choice of GPL license versions is made available with the language indicating
+ * that GPLv2 or any later version may be used, or where a choice of which version
+ * of the GPL is applied is otherwise unspecified.
+ */
 
 #include <time.h>
 #ifndef _WIN32
@@ -67,9 +95,9 @@ extern time_t g_reconnect_random_ts;
 extern RD_BOOL g_has_reconnect_random;
 extern uint8 g_client_random[SEC_RANDOM_SIZE];
 
-#if WITH_DEBUG
+//#if WITH_DEBUG
 static uint32 g_packetno;
-#endif
+//#endif
 
 #ifdef HAVE_ICONV
 static RD_BOOL g_iconv_works = True;
@@ -96,8 +124,8 @@ rdp_recv(uint8 * type)
 		}
 		else if (rdpver != 3)
 		{
-		
-		//	rdp5_process(rdp_s);
+			// rdp5_process should move g_next_packet ok 
+			//rdp5_process(rdp_s);
 			*type = 0;
 			return rdp_s;
 		}
@@ -121,10 +149,10 @@ rdp_recv(uint8 * type)
 	in_uint8s(rdp_s, 2);	/* userid */
 	*type = pdu_type & 0xf;
 
-#if WITH_DEBUG
-	DEBUG(("RDP packet #%d, (type %x)\n", ++g_packetno, *type));
-	hexdump(g_next_packet, length);
-#endif /*  */
+//#if WITH_DEBUG
+	//fprintf(stdout, "\nRDP packet #%d, (type %x)\n", ++g_packetno, *type);
+	//hexdump(g_next_packet, length);
+//#endif /*  */
 
 	g_next_packet += length;
 	return rdp_s;
@@ -610,14 +638,15 @@ rdp_send_client_window_status(int status)
 }
 
 /* Send persistent bitmap cache enumeration PDU's */
-static void rdp_enum_bmpcache2(void)
+static void
+rdp_enum_bmpcache2(void)
 {
-	STREAM s;
+	/*STREAM s;
 	HASH_KEY keylist[BMPCACHE2_NUM_PSTCELLS];
 	uint32 num_keys, offset, count, flags;
 
 	offset = 0;
-	//num_keys = pstcache_enumerate(2, keylist);
+	num_keys = pstcache_enumerate(2, keylist);
 
 	while (offset < num_keys)
 	{
@@ -631,7 +660,7 @@ static void rdp_enum_bmpcache2(void)
 		if (num_keys - offset <= 169)
 			flags |= PDU_FLAG_LAST;
 
-		/* header */
+		// header 
 		out_uint32_le(s, 0);
 		out_uint16_le(s, count);
 		out_uint16_le(s, 0);
@@ -642,7 +671,7 @@ static void rdp_enum_bmpcache2(void)
 		out_uint32_le(s, 0);
 		out_uint32_le(s, flags);
 
-		/* list */
+		// list 
 		out_uint8a(s, keylist[offset], count * sizeof(HASH_KEY));
 
 		s_mark_end(s);
@@ -650,6 +679,7 @@ static void rdp_enum_bmpcache2(void)
 
 		offset += 169;
 	}
+	*/
 }
 
 /* Send an (empty) font information PDU */
@@ -776,8 +806,9 @@ rdp_out_bmpcache_caps(STREAM s)
 	out_uint16_le(s, 0x1000 * Bpp);	/* max cell size */
 }
 
-
-static void rdp_out_bmpcache2_caps(STREAM s)
+/* Output bitmap cache v2 capability set */
+static void
+rdp_out_bmpcache2_caps(STREAM s)
 {
 	out_uint16_le(s, RDP_CAPSET_BMPCACHE2);
 	out_uint16_le(s, RDP_CAPLEN_BMPCACHE2);
@@ -786,7 +817,7 @@ static void rdp_out_bmpcache2_caps(STREAM s)
 
 	out_uint16_be(s, 3);	/* number of caches in this set */
 
-
+	/* max cell size for cache 0 is 16x16, 1 = 32x32, 2 = 64x64, etc */
 	out_uint32_le(s, BMPCACHE2_C0_CELLS);
 	out_uint32_le(s, BMPCACHE2_C1_CELLS);
 	//if (pstcache_init(2))
@@ -1102,11 +1133,12 @@ process_demand_active(STREAM s)
 	rdp_recv(&type);	/* RDP_PDU_SYNCHRONIZE */
 	rdp_recv(&type);	/* RDP_CTL_COOPERATE */
 	rdp_recv(&type);	/* RDP_CTL_GRANT_CONTROL */
-	//rdp_send_input(0, RDP_INPUT_SYNCHRONIZE, 0,      g_numlock_sync ? ui_get_numlock_state(read_keyboard_state()) : 0, 0);
+	//rdp_send_input(0, RDP_INPUT_SYNCHRONIZE, 0,
+	//	       g_numlock_sync ? ui_get_numlock_state(read_keyboard_state()) : 0, 0);
 
 	if (g_rdp_version >= RDP_V5)
 	{
-		//rdp_enum_bmpcache2();
+		rdp_enum_bmpcache2();
 		rdp_send_fonts(3);
 	}
 	else
@@ -1143,12 +1175,12 @@ process_colour_pointer_common(STREAM s, int bpp)
 		warning("process_colour_pointer_common: " "width %d height %d\n", width, height);
 	}
 
-	/* keep hotspot within cursor bounding box */
+	// keep hotspot within cursor bounding box 
 	x = MIN(x, width - 1);
 	y = MIN(y, height - 1);
 	//cursor = ui_create_cursor(x, y, width, height, mask, data, bpp);
 	//ui_set_cursor(cursor);
-	//(cache_idx, cursor);
+	//cache_put_cursor(cache_idx, cursor);
 }
 
 /* Process a colour pointer PDU */
@@ -1188,7 +1220,7 @@ process_system_pointer_pdu(STREAM s)
 	switch (system_pointer_type)
 	{
 		case RDP_NULL_POINTER:
-			//ui_set_null_cursor();
+		//	ui_set_null_cursor();
 			break;
 
 		default:
@@ -1211,24 +1243,24 @@ process_pointer_pdu(STREAM s)
 		case RDP_POINTER_MOVE:
 			in_uint16_le(s, x);
 			in_uint16_le(s, y);
-		//	if (s_check(s))
+			if (s_check(s))
 			//	ui_move_pointer(x, y);
 			break;
 
 		case RDP_POINTER_COLOR:
-			process_colour_pointer_pdu(s);
+			//process_colour_pointer_pdu(s);
 			break;
 
 		case RDP_POINTER_CACHED:
-			process_cached_pointer_pdu(s);
+			//process_cached_pointer_pdu(s);
 			break;
 
 		case RDP_POINTER_SYSTEM:
-			process_system_pointer_pdu(s);
+			//process_system_pointer_pdu(s);
 			break;
 
 		case RDP_POINTER_NEW:
-			process_new_pointer_pdu(s);
+			//process_new_pointer_pdu(s);
 			break;
 
 		default:
@@ -1260,8 +1292,7 @@ process_bitmap_data(STREAM s)
 	cx = right - left + 1;
 	cy = bottom - top + 1;
 
-
-
+	
 	if (Bpp == 0 || width == 0 || height == 0)
 	{
 		warning("%s(), [%d,%d,%d,%d], [%d,%d], bpp=%d, flags=%x", __func__,
@@ -1287,14 +1318,14 @@ process_bitmap_data(STREAM s)
 #endif
 	if (flags == 0)
 	{
-		/* read uncompresssed bitmap data */
+		// read uncompresssed bitmap data 
 		int y;
 		bmpdata = (uint8 *) xmalloc(width * height * Bpp);
 		for (y = 0; y < height; y++)
 		{
 			in_uint8a(s, &bmpdata[(height - y - 1) * (width * Bpp)], width * Bpp);
 		}
-	//	ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
+		//ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
 		xfree(bmpdata);
 		return;
 	}
@@ -1312,16 +1343,16 @@ process_bitmap_data(STREAM s)
 		in_uint8s(s, 2);	/* skip cbUncompressedSize */
 	}
 
-	/* read compressed bitmap data */
+	// read compressed bitmap data 
 	if (!s_check_rem(s, size))
 	{
 		rdp_protocol_error("process_bitmap_data(), consume of bitmap data from stream would overrun", &packet);
 	}
 	in_uint8p(s, data, size);
 	bmpdata = (uint8 *) xmalloc(width * height * Bpp);
-//	if (bitmap_decompress(bmpdata, width, height, data, size, Bpp))
+	//if (bitmap_decompress(bmpdata, width, height, data, size, Bpp))
 	{
-		//ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
+	//	ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
 	}
 	//else
 	{
@@ -1352,20 +1383,20 @@ process_bitmap_updates(STREAM s)
 void
 process_palette(STREAM s)
 {
-	COLOURENTRY *entry;
+	/*COLOURENTRY *entry;
 	COLOURMAP map;
 	RD_HCOLOURMAP hmap;
 	int i;
 
-	in_uint8s(s, 2);	/* pad */
+	in_uint8s(s, 2);	// pad 
 	in_uint16_le(s, map.ncolours);
-	in_uint8s(s, 2);	/* pad */
+	in_uint8s(s, 2);	// pad 
 
 	map.colours = (COLOURENTRY *) xmalloc(sizeof(COLOURENTRY) * map.ncolours);
 
 	DEBUG(("PALETTE(c=%d)\n", map.ncolours));
 
-	for (i = 0; i < map.ncolours; i++)/*  */
+	for (i = 0; i < map.ncolours; i++)
 	{
 		entry = &map.colours[i];
 		in_uint8(s, entry->red);
@@ -1373,10 +1404,11 @@ process_palette(STREAM s)
 		in_uint8(s, entry->blue);
 	}
 
-	//hmap = ui_create_colourmap(&map);
-	//ui_set_colourmap(hmap);
+	hmap = ui_create_colourmap(&map);
+	ui_set_colourmap(hmap);
 
 	xfree(map.colours);
+	*/
 }
 
 /* Process an update PDU */
@@ -1398,11 +1430,11 @@ process_update_pdu(STREAM s)
 			break;
 
 		case RDP_UPDATE_BITMAP:
-			process_bitmap_updates(s);
+		//	process_bitmap_updates(s);
 			break;
 
 		case RDP_UPDATE_PALETTE:
-			process_palette(s);
+			//process_palette(s);
 			break;
 
 		case RDP_UPDATE_SYNCHRONIZE:
@@ -1777,10 +1809,10 @@ rdp_connect(char *server, uint32 flags, char *domain, char *password,
 {
 	RD_BOOL deactivated = False;
 	uint32 ext_disc_reason = 0;
-
+	
 	if (!sec_connect(server, g_username, domain, password, reconnect))
 		return False;
-
+	
 	rdp_send_logon_info(flags, domain, g_username, password, command, directory);
 
 	/* run RDP loop until first licence demand active PDU */

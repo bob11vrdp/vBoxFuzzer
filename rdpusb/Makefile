@@ -16,7 +16,7 @@ KEYMAP_PATH = $(datadir)/rdesktop/keymaps/
 
 MY_ROOT  	= /home/son/VBX/VirtualBox-6.1.36
 HEADER_PATH = -I$(MY_ROOT)/src/VBox/Devices/USB/ -I$(MY_ROOT)/include/ -I$(MY_ROOT)/src/VBox/Main/include/ -I$(MY_ROOT)/src/VBox/Runtime/include/
-LIB_DEF  	= -DIN_RING3 -DRDESKTOP -DWITH_RDPUSB -DVBOX_USE_WITH_SYSFS -DVBOX_USE_WITH_INOTIFY
+LIB_DEF  	= -DIN_RING3 -DRDESKTOP -DWITH_RDPUSB -DVBOX_USE_WITH_SYSFS -DVBOX_USE_WITH_INOTIFY -D__USE_MISC
 OBJ_PATH 	=  $(MY_ROOT)/out/linux.amd64/release/obj
 
 
@@ -34,11 +34,11 @@ SOUNDOBJ    =  rdpsnd.o rdpsnd_dsp.o rdpsnd_oss.o rdpsnd_alsa.o
 SCARDOBJ    = 
 CREDSSPOBJ  = 
 
-RDPOBJ   = tcp.o asn.o iso.o mcs.o secure.o licence.o rdp.o bitmap.o channels.o     mppc.o    ssl.o utils.o #serial.o
+RDPOBJ   = tcp.o asn.o iso.o mcs.o secure.o licence.o rdp.o bitmap.o channels.o  mppc.o  ssl.o utils.o #orders.o cache.o rdp5.o rdpdr.o serial.o printer.o disk.o parallel.o printercache.o pstcache.o lspci.o seamless.o 
 X11OBJ   = rdesktop.o  #xwin.o cliprdr.o ctrl.o xclip.o   xkeymap.o ewmhints.o  
 VNCOBJ   = vnc/rdp2vnc.o vnc/vnc.o vnc/xkeymap.o vnc/x11stubs.o
 USB_LD 	 = -L./VBoxRT.so
-USBOBJ   	= vrdp/rdpusb.o   
+USBOBJ   = vrdp/rdpusb.o   
 #USBGetDevices.o USBProxyDevice-linux.o  USBLib.o  $(OBJ_PATH)/VBoxRT/r3/linux/sysfs.o  
 #$(OBJ_PATH)/VBoxRT/common/string/stringalloc.o  $(OBJ_PATH)/VBoxRT/r3/posix/env-posix.o $(OBJ_PATH)/VBoxRT/common/string/utf-8-case.o $(OBJ_PATH)/VBoxRT/common/string/unidata-upper.o  $(OBJ_PATH)/VBoxRT/common/string/unidata-lower.o  $(OBJ_PATH)/VBoxRT/r3/alloc.o  $(OBJ_PATH)/VBoxRT/r3/posix/dir-posix.o $(OBJ_PATH)/VBoxRT/r3/posix/path-posix.o $(OBJ_PATH)/VBoxRT/common/log/log.o #VBoxRTImp.so 
 
@@ -46,21 +46,10 @@ USBOBJ   	= vrdp/rdpusb.o
 all: $(TARGETS)
 
 rdesktop:  $(RDPOBJ) $(USBOBJ)
-	$(CC) $(CFLAGS) $(HEADER_PATH) $(LIB_DEF) -o rdesktop $(USBOBJ)  $(RDPOBJ)   $(LDFLAGS) -lX11
-
-USBGetDevices.o : 
-	$(CC) $(CFLAGS) $(HEADER_PATH) $(LIB_DEF) -o USBGetDevices.o -c $(MY_ROOT)/src/VBox/Main/src-server/linux/USBGetDevices.cpp 
-
-# $(USB_LD) -L/home/son//VBX/VirtualBox-6.1.36/out/linux.amd64/release/bin/VBoxRT.so 
-
-USBProxyDevice-linux.o: 
-	$(CC) $(CFLAGS) $(HEADER_PATH) $(LIB_DEF) -o USBProxyDevice-linux.o -c $(MY_ROOT)/src/VBox/Devices/USB/linux/USBProxyDevice-linux.cpp 
-
-#-L/home/son//VBX/VirtualBox-6.1.36/out/linux.amd64/release/bin/VBoxRT.so 
+	$(CC) $(CFLAGS) $(HEADER_PATH) $(LIB_DEF) -c -o  rdesktop rdesktop.c $(USBOBJ)  $(RDPOBJ)   $(LDFLAGS) -lX11
 
 librdesktop: $(RDPOBJ)  $(USBOBJ) $(X11OBJ)
-	$(CC) $(CFLAGS) $(HEADER_PATH) $(LIB_DEF)-fPIC -shared -o librdesktop.so $(X11OBJ) $(USBOBJ) $(RDPOBJ) $(LDFLAGS)$(USB_LD)   -lX11 
-#-L/home/son//VBX/VirtualBox-6.1.36/out/linux.amd64/release/bin/VBoxRT.so 
+	$(CC) $(CFLAGS) $(HEADER_PATH) $(LIB_DEF)-fPIC -shared -o librdesktop.so $(X11OBJ) $(USBOBJ) $(RDPOBJ) $(LDFLAGS)$(USB_LD)  -lX11 
 
 rdp2vnc: $(VNCOBJ) $(SOUNDOBJ) $(RDPOBJ) $(SCARDOBJ) $(CREDSSPOBJ)
 	$(VNCLINK) $(CFLAGS) -o rdp2vnc $(VNCOBJ) $(SOUNDOBJ) $(RDPOBJ) $(SCARDOBJ) $(CREDSSPOBJ) $(LDFLAGS) $(LDVNC)
@@ -76,16 +65,6 @@ vnc/xkeymap.o: xkeymap.c
 
 vnc/x11stubs.o: vnc/x11stubs.c
 	$(CC) $(CFLAGS) $(VNCINC) -o vnc/x11stubs.o -c vnc/x11stubs.c
-
-
-
-VBoxRTImp.so :
-	$(CC) $(CFLAGS) $(HEADER_PATH) $(LIB_DEF) -fPIC -shared -o VBoxRTImp.so -c $(MY_ROOT)/out/linux.amd64/release/obj/VBoxRTImp/VBoxRTImpImp.c
-
-
-
-USBLib.o : 
-	$(CC) $(CFLAGS) $(HEADER_PATH) $(LIB_DEF) -o USBLib.o -c $(MY_ROOT)/src/VBox/HostDrivers/VBoxUSB/USBLib.cpp
 
 .PHONY: install
 install: installbin installkeymaps installman
