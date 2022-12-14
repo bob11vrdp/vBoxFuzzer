@@ -340,7 +340,7 @@ rdpusb_init_packet(uint32 len, uint8 code)
 static void rdpusb_send(STREAM s)
 {
 //#ifdef RDPUSB_DEBUG
-	fprintf(stdout,("\n ## RDPUSB send:\n"));
+	fprintf(stdout,("\n## RDPUSB send:\n"));
 	hexdump(s->channel_hdr + 8, s->end - s->channel_hdr - 8);
 //#endif
 
@@ -933,7 +933,7 @@ void rdpusb_check_fds(fd_set * rfds, fd_set * wfds)
 	}
 		
 	s_mark_end(s);
-	fprintf(stdout,"\n !!!!!!!!!! rdpusb_channel :  %p", rdpusb_channel );
+	fprintf(stdout," !!! rdpusb_channel :  %p", rdpusb_channel );
 	rdpusb_send(s);	
 	
 }
