@@ -159,9 +159,9 @@ RD_BOOL g_reconnect_loop = False;
 uint8 g_client_random[SEC_RANDOM_SIZE];
 RD_BOOL g_pending_resize = False;
 
-
+#ifdef WITH_RDPSND
 RD_BOOL g_rdpsnd = False;
-
+#endif
 
 
 RD_BOOL g_rdpusb = False;
@@ -192,7 +192,8 @@ rdp2vnc_connect(char *server, uint32 flags, char *domain, char *password,
 		char *shell, char *directory);
 #endif
 /* Display usage information */
-static void usage(char *program)
+static void
+usage(char *program)
 {
 	fprintf(stderr, "rdesktop: A Remote Desktop Protocol client.\n");
 	fprintf(stderr,
@@ -215,7 +216,9 @@ static void usage(char *program)
 	fprintf(stderr, "   -n: client hostname\n");
 	fprintf(stderr, "   -k: keyboard layout on server (en-us, de, sv, etc.)\n");
 	fprintf(stderr, "   -g: desktop geometry (WxH)\n");
-
+#ifdef WITH_SCARD
+	fprintf(stderr, "   -i: enables smartcard authentication, password is used as pin\n");
+#endif
 	fprintf(stderr, "   -f: full-screen mode\n");
 	fprintf(stderr, "   -b: force bitmap updates\n");
 #ifdef HAVE_ICONV
@@ -253,7 +256,13 @@ static void usage(char *program)
 	fprintf(stderr, "         '-r printer:mydeskjet': enable printer redirection\n");
 	fprintf(stderr,
 		"             or      mydeskjet=\"HP LaserJet IIIP\" to enter server driver as well\n");
-
+#ifdef WITH_RDPSND
+	fprintf(stderr,
+		"         '-r sound:[local[:driver[:device]]|off|remote]': enable sound redirection\n");
+	fprintf(stderr, "                     remote would leave sound on server\n");
+	fprintf(stderr, "                     available drivers for 'local':\n");
+	rdpsnd_show_help();
+#endif
 #ifdef WITH_RDPUSB
         fprintf(stderr,
                 "         '-r usb': enable USB redirection\n");
@@ -265,7 +274,21 @@ static void usage(char *program)
 		"                      'PRIMARYCLIPBOARD' looks at both PRIMARY and CLIPBOARD\n");
 	fprintf(stderr, "                      when sending data to server.\n");
 	fprintf(stderr, "                      'CLIPBOARD' looks at only CLIPBOARD.\n");
-
+#ifdef WITH_SCARD
+	fprintf(stderr, "         '-r scard[:\"Scard Name\"=\"Alias Name[;Vendor Name]\"[,...]]\n");
+	fprintf(stderr, "          example: -r scard:\"eToken PRO 00 00\"=\"AKS ifdh 0\"\n");
+	fprintf(stderr,
+		"                   \"eToken PRO 00 00\" -> Device in Linux/Unix enviroment\n");
+	fprintf(stderr,
+		"                   \"AKS ifdh 0\"       -> Device shown in Windows enviroment \n");
+	fprintf(stderr, "          example: -r scard:\"eToken PRO 00 00\"=\"AKS ifdh 0;AKS\"\n");
+	fprintf(stderr,
+		"                   \"eToken PRO 00 00\" -> Device in Linux/Unix enviroment\n");
+	fprintf(stderr,
+		"                   \"AKS ifdh 0\"       -> Device shown in Windows enviroment \n");
+	fprintf(stderr,
+		"                   \"AKS\"              -> Device vendor name                 \n");
+#endif
 	fprintf(stderr, "   -0: attach to console\n");
 	fprintf(stderr, "   -4: use RDP version 4\n");
 	fprintf(stderr, "   -5: use RDP version 5 (default)\n");
@@ -273,13 +296,25 @@ static void usage(char *program)
     fprintf(stderr, "   -H keep-virtual-desktop-shortcuts: Keep keyboard shortcuts typical\n"
                     "      for switching virtual desktops (C-A-Left/Right). \n");
 #endif
-
+#ifdef WITH_SCARD
+	fprintf(stderr, "   -o: name=value: Adds an additional option to rdesktop.\n");
+	fprintf(stderr,
+		"           sc-csp-name        Specifies the Crypto Service Provider name which\n");
+	fprintf(stderr,
+		"                              is used to authenticate the user by smartcard\n");
+	fprintf(stderr,
+		"           sc-container-name  Specifies the container name, this is usally the username\n");
+	fprintf(stderr, "           sc-reader-name     Smartcard reader name to use\n");
+	fprintf(stderr,
+		"           sc-card-name       Specifies the card name of the smartcard to use\n");
+#endif
 
 	fprintf(stderr, "\n");
 
 }
 
-static int handle_disconnect_reason(RD_BOOL deactivated, uint16 reason)
+static int
+handle_disconnect_reason(RD_BOOL deactivated, uint16 reason)
 {
 	char *text;
 	int retval;
@@ -430,7 +465,12 @@ static void
 rdesktop_reset_state(void)
 {
 	rdp_reset_state();
-
+#ifdef WITH_SCARD
+	scard_reset_state();
+#endif
+#ifdef WITH_RDPSND
+	rdpsnd_reset_state();
+#endif
 }
 
 static RD_BOOL
@@ -473,15 +513,47 @@ static void
 parse_server_and_port(char *server)
 {
 	char *p;
+#ifdef IPv6
+	int addr_colons;
+#endif
 
-
+#ifdef IPv6
+	p = server;
+	addr_colons = 0;
+	while (*p)
+		if (*p++ == ':')
+			addr_colons++;
+	if (addr_colons >= 2)
+	{
+		/* numeric IPv6 style address format - [1:2:3::4]:port */
+		p = strchr(server, ']');
+		if (*server == '[' && p != NULL)
+		{
+			if (*(p + 1) == ':' && *(p + 2) != '\0')
+				g_tcp_port_rdp = strtol(p + 2, NULL, 10);
+			/* remove the port number and brackets from the address */
+			*p = '\0';
+			strncpy(server, server + 1, strlen(server));
+		}
+	}
+	else
+	{
+		/* dns name or IPv4 style address format - server.example.com:port or 1.2.3.4:port */
+		p = strchr(server, ':');
+		if (p != NULL)
+		{
+			g_tcp_port_rdp = strtol(p + 1, NULL, 10);
+			*p = 0;
+		}
+	}
+#else /* no IPv6 support */
 	p = strchr(server, ':');
 	if (p != NULL)
 	{
 		g_tcp_port_rdp = strtol(p + 1, NULL, 10);
 		*p = 0;
 	}
-
+#endif /* IPv6 */
 
 }
 
@@ -493,12 +565,16 @@ DECLEXPORT(PRTLOGGER) RTCALL RTLogDefaultInit(void)
 }
 #endif
 
+
+
 extern void fuzz_device_list(char *buf);
 
 /* Client program */
-extern int fuzz_connect(char *ip)
+extern int wrap_main(char * buf)
 {
-
+	int argc = 4;
+	//char *argv[] = {"./rdesktop-vrdp","127.0.0.1","-r","usb"};
+	char *argv[] = {"./rdesktop-vrdp","192.168.226.151","-r","usb"};
 
 	char server[256];
 	char fullhostname[64];
@@ -513,6 +589,9 @@ extern int fuzz_connect(char *ip)
 	char *locale = NULL;
 	int username_option = 0;
 	RD_BOOL geometry_option = False;
+#ifdef WITH_RDPSND
+	char *rdpsnd_optarg = NULL;
+#endif
 
 #if defined(VBOX) && defined(OPENSSL_MANGLER)
     /* Only need RT initialization if building against OpenSSL using
@@ -546,7 +625,7 @@ extern int fuzz_connect(char *ip)
 	g_seamless_spawn_cmd[0] = domain[0] = g_password[0] = shell[0] = directory[0] = 0;
 	g_embed_wnd = 0;
 
-	//g_num_devices = 0;
+	g_num_devices = 0;
 
 #ifdef RDP2VNC
 #define VNCOPT "V:Q:"
@@ -559,11 +638,11 @@ extern int fuzz_connect(char *ip)
 #define VDHOPT
 #endif
 
-
+	
 	g_rdpusb = True;
 
 
-	STRNCPY(server, ip, sizeof(server));
+	STRNCPY(server, argv[optind], sizeof(server));
 	parse_server_and_port(server);
 
 	if (g_seamless_rdp)
@@ -653,11 +732,11 @@ extern int fuzz_connect(char *ip)
 
 	if (g_keymapname[0] == 0)
 	{
-		//if (locale && xkeymap_from_locale(locale))
+		if (locale && xkeymap_from_locale(locale))
 		{
-		//	fprintf(stderr, "Autoselected keyboard map %s\n", g_keymapname);
+			fprintf(stderr, "Autoselected keyboard map %s\n", g_keymapname);
 		}
-		//else
+		else
 		{
 			STRNCPY(g_keymapname, "en-us", sizeof(g_keymapname));
 		}
@@ -680,8 +759,8 @@ extern int fuzz_connect(char *ip)
 	return EX_OK;
 #else
 
-	// Only startup ctrl functionality is seamless are used for now. 
-	/*if (g_use_ctrl && g_seamless_rdp)
+	/* Only startup ctrl functionality is seamless are used for now. */
+	if (g_use_ctrl && g_seamless_rdp)
 	{
 		if (ctrl_init(server, domain, g_username) < 0)
 		{
@@ -694,24 +773,30 @@ extern int fuzz_connect(char *ip)
 			fprintf(stdout,
 				"rdesktop in slave mode sending command to master process.\n");
 
-			//if (g_seamless_spawn_cmd[0])
-				//return ctrl_send_command("seamless.spawn", g_seamless_spawn_cmd);
+			if (g_seamless_spawn_cmd[0])
+				return ctrl_send_command("seamless.spawn", g_seamless_spawn_cmd);
 
 			fprintf(stdout, "No command specified to be spawn in seamless mode.\n");
 			return EX_USAGE;
 		}
 	}
-*/
-//	if (!ui_init())
-//		return EX_OSERR;
 
+	if (!ui_init())
+		return EX_OSERR;
+
+#ifdef WITH_RDPSND
+	if (!rdpsnd_init(rdpsnd_optarg))
+		warning("Initializing sound-support failed!\n");
+#endif
+
+	
 	rdpusb_init();
 
 
-    // if (g_lspci_enabled)
-	//	lspci_init();
+    if (g_lspci_enabled)
+		lspci_init();
 
-	//rdpdr_init();
+	rdpdr_init();
 	g_reconnect_loop = False;
 	while (1)
 	{
@@ -735,9 +820,12 @@ extern int fuzz_connect(char *ip)
 			g_network_error = False;
 			g_redirect = False;
 		}
+	
+		ui_init_connection();
 		
-		//ui_init_connection();
-		if (!rdp_connect(server, flags, domain, g_password, shell, directory, g_reconnect_loop))
+		int rs =  rdp_connect(server, flags, domain, g_password, shell, directory, g_reconnect_loop);
+		fprintf(stdout, "44444 \n");
+		if (!rs)
 		{
 
 			g_network_error = False;
@@ -756,21 +844,23 @@ extern int fuzz_connect(char *ip)
 			sleep(4);
 			continue;
 		}
-		
+
 		if (g_redirect)
 		{
 			rdp_disconnect();
 			continue;
 		}
+		
 
+		/* By setting encryption to False here, we have an encrypted login
+		   packet but unencrypted transfer of other packets */
 		if (!g_packet_encryption)
 			g_encryption_initial = g_encryption = False;
 
-		fprintf(stdout,"** Connection successful.\n");		
-		//fuzz_device_list(buf);
-		//rd_create_ui();
-		tcp_run_ui(True);
+		fprintf(stdout,"Connection successful.\n");
 
+		rd_create_ui();
+		tcp_run_ui(True);
 
 		deactivated = False;
 		g_reconnect_loop = False;
@@ -778,8 +868,8 @@ extern int fuzz_connect(char *ip)
 
 		tcp_run_ui(False);
 
-		//fprintf(stdout,"** Disconnecting...\n");
-		//rdp_disconnect();
+		fprintf(stdout, "Disconnecting...\n");
+		rdp_disconnect();
 
 		if (g_redirect)
 			continue;
@@ -795,8 +885,8 @@ extern int fuzz_connect(char *ip)
 			continue;
 		}
 
-		//ui_seamless_end();
-		//ui_destroy_window();
+		ui_seamless_end();
+		ui_destroy_window();
 
 		/* Enter a reconnect loop if we have a pending resize request */
 		if (g_pending_resize)
@@ -808,12 +898,13 @@ extern int fuzz_connect(char *ip)
 		break;
 	}
 
-	//cache_save_state();
-	//ui_deinit();
+	cache_save_state();
+	ui_deinit();
 
-
-    //rdpusb_close();
-
+#ifdef WITH_RDPUSB
+        if (g_rdpusb)
+                rdpusb_close();
+#endif
 
 	if (g_user_quit)
 		return EXRD_WINDOW_CLOSED;
@@ -826,6 +917,10 @@ extern int fuzz_connect(char *ip)
 
 	xfree(g_username);
 }
+
+
+
+
 
 #ifdef EGD_SOCKET
 /* Read 32 random bytes from PRNGD or EGD socket (based on OpenSSL RAND_egd) */
@@ -975,7 +1070,6 @@ xfree(void *mem)
 void
 error(char *format, ...)
 {
-	fprintf(stdout, "[rdesktop.c - error ]\n");
 	va_list ap;
 
 	fprintf(stderr, "ERROR: ");
@@ -1375,10 +1469,10 @@ void
 rd_create_ui()
 {
 	/* only create a window if we dont have one intialized */
-	//if (!ui_have_window())
+	if (!ui_have_window())
 	{
-	//	if (!ui_create_window())
-	//		exit(EX_OSERR);
+		if (!ui_create_window())
+			exit(EX_OSERR);
 	}
 }
 

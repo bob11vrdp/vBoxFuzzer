@@ -212,6 +212,7 @@ RD_BOOL
 iso_connect(char *server, char *username, char *domain, char *password,
 	    RD_BOOL reconnect, uint32 * selected_protocol)
 {
+	
 	STREAM s;
 	uint8 code;
 	uint32 neg_proto;

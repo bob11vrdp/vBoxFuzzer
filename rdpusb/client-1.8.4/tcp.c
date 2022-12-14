@@ -132,13 +132,15 @@ tcp_send(STREAM s)
 	int ssl_err;
 	int length = s->end - s->data;
 	int sent, total = 0;
-
+	
 	if (g_network_error == True)
 		return;
 
 #ifdef WITH_SCARD
+	fprintf(stdout, "tcp.c WITH_SCARD\n");
 	scard_lock(SCARD_LOCK_TCP);
 #endif
+
 	while (total < length)
 	{
 		if (g_ssl)
@@ -189,6 +191,7 @@ tcp_send(STREAM s)
 		}
 		total += sent;
 	}
+	
 #ifdef WITH_SCARD
 	scard_unlock(SCARD_LOCK_TCP);
 #endif
@@ -203,7 +206,7 @@ tcp_recv(STREAM s, uint32 length)
 
 	if (g_network_error == True)
 		return NULL;
-
+	
 	if (s == NULL)
 	{
 		/* read into "new" stream */
@@ -229,12 +232,12 @@ tcp_recv(STREAM s, uint32 length)
 			s->end = s->data + end_offset;
 		}
 	}
-
+	
 	while (length > 0)
 	{
 		if ((!g_ssl || SSL_pending(g_ssl) <= 0) && g_run_ui)
 		{
-			//if (!ui_select(g_sock))
+			if (!ui_select(g_sock))
 			{
 				/* User quit */
 				g_user_quit = True;
@@ -274,7 +277,9 @@ tcp_recv(STREAM s, uint32 length)
 		}
 		else
 		{
+			
 			rcvd = recv(g_sock, s->end, length, 0);
+			
 			if (rcvd < 0)
 			{
 				if (rcvd == -1 && TCP_BLOCKS)
@@ -507,10 +512,14 @@ tcp_connect(char *server)
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons((uint16) g_tcp_port_rdp);
 
-	if (connect(g_sock, (struct sockaddr *) &servaddr, sizeof(struct sockaddr)) < 0)
+	int rs = connect(g_sock, (struct sockaddr *) &servaddr, sizeof(struct sockaddr));
+	if ( rs < 0)
 	{
 		if (!g_reconnect_loop)
+		{
+			fprintf(stdout, "[tcp.c] %s", TCP_STRERROR);
 			error("connect: %s\n", TCP_STRERROR);
+		}
 
 		TCP_CLOSE(g_sock);
 		g_sock = -1;

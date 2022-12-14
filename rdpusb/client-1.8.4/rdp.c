@@ -95,9 +95,9 @@ extern time_t g_reconnect_random_ts;
 extern RD_BOOL g_has_reconnect_random;
 extern uint8 g_client_random[SEC_RANDOM_SIZE];
 
-//#if WITH_DEBUG
+#if WITH_DEBUG
 static uint32 g_packetno;
-//#endif
+#endif
 
 #ifdef HAVE_ICONV
 static RD_BOOL g_iconv_works = True;
@@ -124,8 +124,8 @@ rdp_recv(uint8 * type)
 		}
 		else if (rdpver != 3)
 		{
-			// rdp5_process should move g_next_packet ok 
-			//rdp5_process(rdp_s);
+			/* rdp5_process should move g_next_packet ok */
+			rdp5_process(rdp_s);
 			*type = 0;
 			return rdp_s;
 		}
@@ -149,10 +149,10 @@ rdp_recv(uint8 * type)
 	in_uint8s(rdp_s, 2);	/* userid */
 	*type = pdu_type & 0xf;
 
-//#if WITH_DEBUG
-	//fprintf(stdout, "\nRDP packet #%d, (type %x)\n", ++g_packetno, *type);
-	//hexdump(g_next_packet, length);
-//#endif /*  */
+#if WITH_DEBUG
+	DEBUG(("RDP packet #%d, (type %x)\n", ++g_packetno, *type));
+	hexdump(g_next_packet, length);
+#endif /*  */
 
 	g_next_packet += length;
 	return rdp_s;
@@ -641,7 +641,7 @@ rdp_send_client_window_status(int status)
 static void
 rdp_enum_bmpcache2(void)
 {
-	/*STREAM s;
+	STREAM s;
 	HASH_KEY keylist[BMPCACHE2_NUM_PSTCELLS];
 	uint32 num_keys, offset, count, flags;
 
@@ -660,7 +660,7 @@ rdp_enum_bmpcache2(void)
 		if (num_keys - offset <= 169)
 			flags |= PDU_FLAG_LAST;
 
-		// header 
+		/* header */
 		out_uint32_le(s, 0);
 		out_uint16_le(s, count);
 		out_uint16_le(s, 0);
@@ -671,7 +671,7 @@ rdp_enum_bmpcache2(void)
 		out_uint32_le(s, 0);
 		out_uint32_le(s, flags);
 
-		// list 
+		/* list */
 		out_uint8a(s, keylist[offset], count * sizeof(HASH_KEY));
 
 		s_mark_end(s);
@@ -679,7 +679,6 @@ rdp_enum_bmpcache2(void)
 
 		offset += 169;
 	}
-	*/
 }
 
 /* Send an (empty) font information PDU */
@@ -820,11 +819,11 @@ rdp_out_bmpcache2_caps(STREAM s)
 	/* max cell size for cache 0 is 16x16, 1 = 32x32, 2 = 64x64, etc */
 	out_uint32_le(s, BMPCACHE2_C0_CELLS);
 	out_uint32_le(s, BMPCACHE2_C1_CELLS);
-	//if (pstcache_init(2))
+	if (pstcache_init(2))
 	{
-	//	out_uint32_le(s, BMPCACHE2_NUM_PSTCELLS | BMPCACHE2_FLAG_PERSIST);
+		out_uint32_le(s, BMPCACHE2_NUM_PSTCELLS | BMPCACHE2_FLAG_PERSIST);
 	}
-	//else
+	else
 	{
 		out_uint32_le(s, BMPCACHE2_C2_CELLS);
 	}
@@ -1060,7 +1059,7 @@ rdp_process_bitmap_caps(STREAM s)
 			width, height);
 		g_width = width;
 		g_height = height;
-		//ui_resize_window();
+		ui_resize_window();
 	}
 }
 
@@ -1133,8 +1132,8 @@ process_demand_active(STREAM s)
 	rdp_recv(&type);	/* RDP_PDU_SYNCHRONIZE */
 	rdp_recv(&type);	/* RDP_CTL_COOPERATE */
 	rdp_recv(&type);	/* RDP_CTL_GRANT_CONTROL */
-	//rdp_send_input(0, RDP_INPUT_SYNCHRONIZE, 0,
-	//	       g_numlock_sync ? ui_get_numlock_state(read_keyboard_state()) : 0, 0);
+	rdp_send_input(0, RDP_INPUT_SYNCHRONIZE, 0,
+		       g_numlock_sync ? ui_get_numlock_state(read_keyboard_state()) : 0, 0);
 
 	if (g_rdp_version >= RDP_V5)
 	{
@@ -1148,7 +1147,7 @@ process_demand_active(STREAM s)
 	}
 
 	rdp_recv(&type);	/* RDP_PDU_UNKNOWN 0x28 (Fonts?) */
-	//reset_order_state();
+	reset_order_state();
 }
 
 /* Process a colour pointer PDU */
@@ -1175,12 +1174,12 @@ process_colour_pointer_common(STREAM s, int bpp)
 		warning("process_colour_pointer_common: " "width %d height %d\n", width, height);
 	}
 
-	// keep hotspot within cursor bounding box 
+	/* keep hotspot within cursor bounding box */
 	x = MIN(x, width - 1);
 	y = MIN(y, height - 1);
-	//cursor = ui_create_cursor(x, y, width, height, mask, data, bpp);
-	//ui_set_cursor(cursor);
-	//cache_put_cursor(cache_idx, cursor);
+	cursor = ui_create_cursor(x, y, width, height, mask, data, bpp);
+	ui_set_cursor(cursor);
+	cache_put_cursor(cache_idx, cursor);
 }
 
 /* Process a colour pointer PDU */
@@ -1207,7 +1206,7 @@ process_cached_pointer_pdu(STREAM s)
 	uint16 cache_idx;
 
 	in_uint16_le(s, cache_idx);
-	//ui_set_cursor(cache_get_cursor(cache_idx));
+	ui_set_cursor(cache_get_cursor(cache_idx));
 }
 
 /* Process a system pointer PDU */
@@ -1220,7 +1219,7 @@ process_system_pointer_pdu(STREAM s)
 	switch (system_pointer_type)
 	{
 		case RDP_NULL_POINTER:
-		//	ui_set_null_cursor();
+			ui_set_null_cursor();
 			break;
 
 		default:
@@ -1244,23 +1243,23 @@ process_pointer_pdu(STREAM s)
 			in_uint16_le(s, x);
 			in_uint16_le(s, y);
 			if (s_check(s))
-			//	ui_move_pointer(x, y);
+				ui_move_pointer(x, y);
 			break;
 
 		case RDP_POINTER_COLOR:
-			//process_colour_pointer_pdu(s);
+			process_colour_pointer_pdu(s);
 			break;
 
 		case RDP_POINTER_CACHED:
-			//process_cached_pointer_pdu(s);
+			process_cached_pointer_pdu(s);
 			break;
 
 		case RDP_POINTER_SYSTEM:
-			//process_system_pointer_pdu(s);
+			process_system_pointer_pdu(s);
 			break;
 
 		case RDP_POINTER_NEW:
-			//process_new_pointer_pdu(s);
+			process_new_pointer_pdu(s);
 			break;
 
 		default:
@@ -1292,7 +1291,15 @@ process_bitmap_data(STREAM s)
 	cx = right - left + 1;
 	cy = bottom - top + 1;
 
-	
+	/* FIXME: There are a assumtion that we do not consider in
+	   this code. The value of bpp is not passed to
+	   ui_paint_bitmap() which relies on g_server_bpp for drawing
+	   the bitmap data.
+
+	   Does this means that we can sanity check bpp with g_server_bpp ?
+	 */
+
+
 	if (Bpp == 0 || width == 0 || height == 0)
 	{
 		warning("%s(), [%d,%d,%d,%d], [%d,%d], bpp=%d, flags=%x", __func__,
@@ -1318,14 +1325,14 @@ process_bitmap_data(STREAM s)
 #endif
 	if (flags == 0)
 	{
-		// read uncompresssed bitmap data 
+		/* read uncompresssed bitmap data */
 		int y;
 		bmpdata = (uint8 *) xmalloc(width * height * Bpp);
 		for (y = 0; y < height; y++)
 		{
 			in_uint8a(s, &bmpdata[(height - y - 1) * (width * Bpp)], width * Bpp);
 		}
-		//ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
+		ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
 		xfree(bmpdata);
 		return;
 	}
@@ -1343,18 +1350,18 @@ process_bitmap_data(STREAM s)
 		in_uint8s(s, 2);	/* skip cbUncompressedSize */
 	}
 
-	// read compressed bitmap data 
+	/* read compressed bitmap data */
 	if (!s_check_rem(s, size))
 	{
 		rdp_protocol_error("process_bitmap_data(), consume of bitmap data from stream would overrun", &packet);
 	}
 	in_uint8p(s, data, size);
 	bmpdata = (uint8 *) xmalloc(width * height * Bpp);
-	//if (bitmap_decompress(bmpdata, width, height, data, size, Bpp))
+	if (bitmap_decompress(bmpdata, width, height, data, size, Bpp))
 	{
-	//	ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
+		ui_paint_bitmap(left, top, cx, cy, width, height, bmpdata);
 	}
-	//else
+	else
 	{
 		warning("%s(), failed to decompress bitmap", __func__);
 	}
@@ -1383,14 +1390,14 @@ process_bitmap_updates(STREAM s)
 void
 process_palette(STREAM s)
 {
-	/*COLOURENTRY *entry;
+	COLOURENTRY *entry;
 	COLOURMAP map;
 	RD_HCOLOURMAP hmap;
 	int i;
 
-	in_uint8s(s, 2);	// pad 
+	in_uint8s(s, 2);	/* pad */
 	in_uint16_le(s, map.ncolours);
-	in_uint8s(s, 2);	// pad 
+	in_uint8s(s, 2);	/* pad */
 
 	map.colours = (COLOURENTRY *) xmalloc(sizeof(COLOURENTRY) * map.ncolours);
 
@@ -1408,7 +1415,6 @@ process_palette(STREAM s)
 	ui_set_colourmap(hmap);
 
 	xfree(map.colours);
-	*/
 }
 
 /* Process an update PDU */
@@ -1419,22 +1425,22 @@ process_update_pdu(STREAM s)
 
 	in_uint16_le(s, update_type);
 
-	//ui_begin_update();
+	ui_begin_update();
 	switch (update_type)
 	{
 		case RDP_UPDATE_ORDERS:
 			in_uint8s(s, 2);	/* pad */
 			in_uint16_le(s, count);
 			in_uint8s(s, 2);	/* pad */
-			//process_orders(s, count);
+			process_orders(s, count);
 			break;
 
 		case RDP_UPDATE_BITMAP:
-		//	process_bitmap_updates(s);
+			process_bitmap_updates(s);
 			break;
 
 		case RDP_UPDATE_PALETTE:
-			//process_palette(s);
+			process_palette(s);
 			break;
 
 		case RDP_UPDATE_SYNCHRONIZE:
@@ -1443,7 +1449,7 @@ process_update_pdu(STREAM s)
 		default:
 			unimpl("update %d\n", update_type);
 	}
-	//ui_end_update();
+	ui_end_update();
 }
 
 
@@ -1562,7 +1568,7 @@ process_data_pdu(STREAM s, uint32 * ext_disc_reason)
 			break;
 
 		case RDP_DATA_PDU_BELL:
-		//	ui_bell();
+			ui_bell();
 			break;
 
 		case RDP_DATA_PDU_LOGON:
@@ -1809,10 +1815,10 @@ rdp_connect(char *server, uint32 flags, char *domain, char *password,
 {
 	RD_BOOL deactivated = False;
 	uint32 ext_disc_reason = 0;
-	
+
 	if (!sec_connect(server, g_username, domain, password, reconnect))
 		return False;
-	
+
 	rdp_send_logon_info(flags, domain, g_username, password, command, directory);
 
 	/* run RDP loop until first licence demand active PDU */
