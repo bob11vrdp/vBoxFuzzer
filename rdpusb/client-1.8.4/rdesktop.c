@@ -496,7 +496,7 @@ DECLEXPORT(PRTLOGGER) RTCALL RTLogDefaultInit(void)
 extern void fuzz_device_list(char *buf);
 
 /* Client program */
-extern int fuzz_connect(char *ip, char* buf)
+extern int fuzz_connect(char *ip)
 {
 
 
@@ -767,7 +767,7 @@ extern int fuzz_connect(char *ip, char* buf)
 			g_encryption_initial = g_encryption = False;
 
 		fprintf(stdout,"** Connection successful.\n");		
-		fuzz_device_list(buf);
+		//fuzz_device_list(buf);
 		//rd_create_ui();
 		tcp_run_ui(True);
 
@@ -812,7 +812,7 @@ extern int fuzz_connect(char *ip, char* buf)
 	//ui_deinit();
 
 
-    rdpusb_close();
+    //rdpusb_close();
 
 
 	if (g_user_quit)

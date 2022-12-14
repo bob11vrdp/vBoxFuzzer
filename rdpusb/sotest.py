@@ -20,14 +20,15 @@ def exec_radamsa():
 		return b""
 			
 libc = cdll.LoadLibrary("./librdesktop.so")
-
+libc.fuzz_connect(b"127.0.0.1")
 
 
 while(1):				
 	try:
-		outs = exec_radamsa()				
+		print(libc)
+		outs = exec_radamsa()	
+		libc.fuzz_device_list(outs)					
 		
-		libc.fuzz_connect(b"127.0.0.1", outs)
 		#print("live :", libc.isConnected())
 		#libc.fuzz_device_list(outs)
 		time.sleep(1)	

@@ -47,8 +47,9 @@ class Fuzzer:
     def start_librdesktop(self):
         print(libc)
         try:
+            print(libc)
             outs = self.exec_radamsa()
-            libc.fuzz_connect(b"127.0.0.1", outs)
+            libc.fuzz_device_list(outs)
         except Exception as e:
             print(e)
             return
@@ -91,6 +92,7 @@ class Fuzzer:
                 vBox_thread.start()
                 time.sleep(0.5)
             else:
+                libc.fuzz_connect(b"127.0.0.1")
                 self.start_librdesktop()
                 time.sleep(0.5)
 
