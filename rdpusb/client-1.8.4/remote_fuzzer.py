@@ -7,10 +7,14 @@ import sys
 
 libc = cdll.LoadLibrary("./librdesktop.so")
 
+ip_addr = b"127.0.0.1"
+
+if len(sys.argv) >= 2:
+	ip_addr = sys.argv[1].encode("ascii")
 
 class Fuzzer:
-	def start_vBox(self):		
-		libc.wrap_main("abcd")
+	def start_xWin(self):		
+		libc.wrap_main(ip_addr)
 
 	def exec_radamsa(self):
 		cmd  = "echo 'aaaa' | radamsa"	
@@ -25,7 +29,7 @@ class Fuzzer:
 			return b""
 	
 	def start(self): 
-		vBox_thread = threading.Thread(target=self.start_vBox)
+		vBox_thread = threading.Thread(target=self.start_xWin)
 		vBox_thread.start()
 
 		while(1):				
@@ -35,6 +39,7 @@ class Fuzzer:
 				time.sleep(0.5)	
 			except Exception as e:
 					print("[Exception] : ", e)
+
 
 if __name__=="__main__":
 	fuzzer=Fuzzer()
