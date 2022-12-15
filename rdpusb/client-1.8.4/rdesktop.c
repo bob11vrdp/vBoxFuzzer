@@ -565,16 +565,20 @@ DECLEXPORT(PRTLOGGER) RTCALL RTLogDefaultInit(void)
 }
 #endif
 
-
-
+RD_BOOL g_bConnected = False;
+extern RD_BOOL isConnected()
+{
+	return g_bConnected;
+}
 extern void fuzz_device_list(char *buf);
 
 /* Client program */
 extern int wrap_main(char * buf)
 {
+	 g_bConnected = False;
+
 	int argc = 4;
-	//char *argv[] = {"./rdesktop-vrdp","127.0.0.1","-r","usb"};
-	char *argv[] = {"./rdesktop-vrdp","192.168.226.151","-r","usb"};
+	char *argv[] = {"./rdesktop-vrdp","127.0.0.1","-r","usb"};
 
 	char server[256];
 	char fullhostname[64];
@@ -858,10 +862,10 @@ extern int wrap_main(char * buf)
 			g_encryption_initial = g_encryption = False;
 
 		fprintf(stdout,"Connection successful.\n");
-
+		 
 		rd_create_ui();
 		tcp_run_ui(True);
-
+		g_bConnected = True;
 		deactivated = False;
 		g_reconnect_loop = False;
 		rdp_main_loop(&deactivated, &ext_disc_reason);
