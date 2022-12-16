@@ -575,10 +575,7 @@ extern void fuzz_device_list(char *buf);
 /* Client program */
 extern int wrap_main(char * buf)
 {
-	 g_bConnected = False;
-
-	int argc = 4;
-	char *argv[] = {"./rdesktop-vrdp","127.0.0.1","-r","usb"};
+	 g_bConnected = False;	
 
 	char server[256];
 	char fullhostname[64];
@@ -646,7 +643,7 @@ extern int wrap_main(char * buf)
 	g_rdpusb = True;
 
 
-	STRNCPY(server, argv[optind], sizeof(server));
+	STRNCPY(server, buf, sizeof(server));
 	parse_server_and_port(server);
 
 	if (g_seamless_rdp)

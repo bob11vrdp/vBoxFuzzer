@@ -517,7 +517,7 @@ tcp_connect(char *server)
 	{
 		if (!g_reconnect_loop)
 		{
-			fprintf(stdout, "[tcp.c] %s", TCP_STRERROR);
+			fprintf(stdout, "[tcp.c] %s\n", TCP_STRERROR);
 			error("connect: %s\n", TCP_STRERROR);
 		}
 
