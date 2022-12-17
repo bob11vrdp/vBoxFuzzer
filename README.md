@@ -1,5 +1,5 @@
 # random값 생성을 위한 radamsa install
-sudo apt-get install gcc make git wget
+sudo apt-get install gcc make git wget\n
 git clone https://gitlab.com/akihe/radamsa.git && cd radamsa && make && sudo make install
 echo "HAL 9000" | radamsa   #설치 확인
 
