@@ -19,5 +19,6 @@ make librdesktop   # so파일 생성
 # librdesktop.so Test
 python3 ./remoate_fuzzer.py <ip>   #원격 테스트
 
-
-
+# Server 
+./loadall.sh    # Building VirtualBox kernel modules
+./VBoxHeadless -s <uuid> --vrde on    # VBoxHeadless start
