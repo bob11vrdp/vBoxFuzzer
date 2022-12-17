@@ -17,7 +17,9 @@ class Fuzzer:
 		libc.wrap_main(ip_addr)
 
 	def exec_radamsa(self):
-		cmd  = "echo '豌亮?굒엜똁챐쒎눻긯둭펤뺵' | radamsa"	
+		#cmd  = "echo 'aaaa' | radamsa"	
+		cmd  = "echo '豌亮?굒엜똁챐쒎눻긯둭펤뺵豌亮?굒엜똁챐쒎눻긯둭펤뺵豌亮?굒엜똁챐쒎눻긯둭펤뺵豌亮?굒엜똁챐쒎눻긯둭펤뺵' | radamsa"
+
 		proc  = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 		try:
@@ -34,9 +36,12 @@ class Fuzzer:
 
 		while(1):				
 			try:				
-				outs = self.exec_radamsa()				
-				libc.fuzz_device_list(outs)		
-				time.sleep(0.5)	
+				outs = self.exec_radamsa()		
+
+				if libc.isConnected() == True:		
+					libc.fuzz_device_list(outs)
+				
+				time.sleep(0.1)	
 			except Exception as e:
 					print("[Exception] : ", e)
 
