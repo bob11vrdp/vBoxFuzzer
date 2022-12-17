@@ -6,10 +6,9 @@ import time
 import subprocess
 from ctypes import *
 
-try:
-	libc = cdll.LoadLibrary("./librdesktop.so")
-except Exception as e:
-	print(e)
+
+libc = cdll.LoadLibrary("./librdesktop.so")
+
 
 class Fuzzer:
 	def __init__(self):
@@ -42,11 +41,27 @@ class Fuzzer:
 		except Exception as e:
 			return False
 	
-	def start_rdesktop(self):
+	def start_xWin(self):
 		libc.wrap_main(b"127.0.0.1")
 	
 	def start_vBox(self):
-		os.system("gnome-terminal -e 'bash -c \"python3 local_fuzzer_sub.py;\"'")
+		#os.system("gnome-terminal -e 'bash -c \"python3 local_fuzzer_sub.py;\"'")
+		cmd  = "/home/son/VBX/VirtualBox-6.1.36/out/linux.amd64/release/bin/VBoxHeadless --startvm win10 --vrde on"
+		print("\n", cmd)
+		proc  = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		
+		try:
+			outs, error = proc.communicate()
+			print("returnCode :",  proc.returncode)
+			print("stdout :", outs.decode("utf-8"))
+			print("stderr :", error.decode("utf-8"))
+			
+			#if error .decode("utf-8") != "" :             
+			#    crash_log(outs, error, proc.returncode, "crash.log")
+		except Exception as e:
+			print(e)
+			return
+	
 
 	def start(self):
 		while True:
@@ -58,14 +73,21 @@ class Fuzzer:
 				vBox_thread.start()
 				time.sleep(1)
 				
+				
 			else:
 				rs = libc.isConnected()
 				print( "is connected : ", rs )
 				
 				if rs == False:
-					libc.wrap_main(b"127.0.0.1")
+					xWin_thread = threading.Thread(target=self.start_xWin)
+					xWin_thread.start()
+					#libc.start_xWin(b"127.0.0.1")
+					time.sleep(1)
 				else:
-					time.sleep(0.1)
+					outs = self.exec_radamsa()
+					if libc.isConnected() == True:
+						libc.fuzz_device_list(outs)						
+						time.sleep(0.1)
 
 			_counter =0	
 			while _counter < 4:
